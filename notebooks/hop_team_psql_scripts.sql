@@ -45,6 +45,9 @@ Provider_Second_Line_Business_Practice_Location_Address TEXT,
 Provider_Business_Practice_Location_Address_City_Name TEXT,
 Provider_Business_Practice_Location_Address_State_Name TEXT,
 Provider_Business_Practice_Location_Address_Postal_Code TEXT,
+	NPI_Deactivation_Reason_Code TEXT,
+	NPI_Deactivation_Date 		TEXT, 
+	NPI_Reactivation_Date 		TEXT,
 	Combined_Taxonomy 			TEXT
 );
 
@@ -204,8 +207,152 @@ LIMIT 20;
 
 
 
+	-- "MISSING VALUES" QUERIES --
 
--- JOINING docgraph DATA ON ENTITY TYPE
+-- Q. HOW MANY PROVIDERS HAVE MISSING TAXONOMY CODES?  ARE THESE PROVIDERS' NPIs DEACTIVATED?
+
+-- A. THERE ARE 885 PROVIDERS IN TN WHO SEEM TO BE MISSING TAXONOMY CODES.  HOWEVER, NONE OF THESE HAVE DE-ACTIVATION OR RE-ACTIVATION INFO FOR THEIR NPIs.  
+
+SELECT COUNT(*)
+FROM npi_data nd
+--	INNER JOIN docgraph d
+--		ON CASE WHEN nd.entity_type_code = '1' THEN nd.npi = d.from_npi
+--		ELSE nd.npi = d.to_npi END
+	LEFT JOIN nucc_taxonomy tx
+		ON nd.Combined_Taxonomy = tx.code
+	INNER JOIN zip_cbsa z
+		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
+WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+	AND tx.code IS NULL
+--	AND d.transaction_count >= 50
+-- 	AND d.average_day_wait <= 100
+;
+
+
+WITH cteNoTxCode AS
+(
+	SELECT npi
+	FROM npi_data
+		LEFT JOIN nucc_taxonomy
+			ON npi_data.Combined_Taxonomy = nucc_taxonomy.code
+	WHERE Provider_Business_Practice_Location_Address_State_Name = 'TN'
+		AND code IS NULL
+)
+SELECT nd.npi,
+	nd.NPI_Deactivation_Reason_Code,
+	nd.NPI_Deactivation_Date, 
+	nd.NPI_Reactivation_Date, 
+	nd.provider_organization_name AS org_name,
+	nd.Provider_Last_Name || ', ' || Provider_First_Name || Provider_Credential AS provider_name,
+	CASE WHEN nd.entity_type_code = '1' THEN 'Provider'
+		WHEN nd.entity_type_code = '2' THEN 'Facility'
+		END AS entity_type,
+--	d.from_npi,
+--	d.to_npi,
+	tx.code AS taxonomy_code,
+	tx.classification,	-- DO WE CONCATENATE THESE?
+	tx.specialization,
+--	d.patient_count,
+--	d.transaction_count,
+--	d.average_day_wait,
+nd.Provider_First_Line_Business_Practice_Location_Address || ' ' || nd.Provider_Second_Line_Business_Practice_Location_Address AS Street_Address,
+nd.Provider_Business_Practice_Location_Address_City_Name AS City,
+nd.Provider_Business_Practice_Location_Address_State_Name AS "State",
+	z.zip,
+	z.cbsa
+FROM npi_data nd
+--	INNER JOIN docgraph d
+--		ON CASE WHEN nd.entity_type_code = '1' THEN nd.npi = d.from_npi
+--		ELSE nd.npi = d.to_npi END
+	LEFT JOIN nucc_taxonomy tx
+		ON nd.Combined_Taxonomy = tx.code
+	INNER JOIN zip_cbsa z
+		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
+WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+	AND nd.npi IN
+	(
+		SELECT npi
+		FROM cteNoTxCode
+	)
+	AND 
+	(
+		nd.NPI_Deactivation_Reason_Code IS NOT NULL OR
+		nd.NPI_Deactivation_Date IS NOT NULL OR 
+		nd.NPI_Reactivation_Date IS NOT NULL
+	)
+--	AND d.transaction_count >= 50
+-- 	AND d.average_day_wait <= 100
+;
+
+
+
+
+-- Q. HOW MANY NPIs HAVE NULL provider AND org NAMES BOTH? 
+
+-- A. ONLY 3, BUT THEY ARE IN THE NASHVILLE AREA (COLUMBIA, GERMANTOWN, CLARKSVILLE)
+
+SELECT -- COUNT(DISTINCT nd.npi)
+nd.npi,
+	nd.provider_organization_name AS org_name,
+	nd.Provider_Last_Name || ', ' || Provider_First_Name || Provider_Credential AS provider_name,
+	CASE WHEN nd.entity_type_code = '1' THEN 'Provider'
+		WHEN nd.entity_type_code = '2' THEN 'Facility'
+		END AS entity_type,
+--	d.from_npi,
+--	d.to_npi,
+	tx.code AS taxonomy_code,
+	tx.classification,	-- DO WE CONCATENATE THESE?
+	tx.specialization,
+--	d.patient_count,
+--	d.transaction_count,
+--	d.average_day_wait,
+nd.Provider_First_Line_Business_Practice_Location_Address || ' ' || nd.Provider_Second_Line_Business_Practice_Location_Address AS Street_Address,
+nd.Provider_Business_Practice_Location_Address_City_Name AS City,
+nd.Provider_Business_Practice_Location_Address_State_Name AS "State",
+	z.zip,
+	z.cbsa
+FROM npi_data nd
+--	INNER JOIN docgraph d
+--		ON CASE WHEN nd.entity_type_code = '1' THEN nd.npi = d.from_npi
+--		ELSE nd.npi = d.to_npi END
+	INNER JOIN nucc_taxonomy tx
+		ON nd.Combined_Taxonomy = tx.code
+	INNER JOIN zip_cbsa z
+		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
+WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+	AND (nd.provider_organization_name IS NULL
+		 AND nd.Provider_Last_Name IS NULL)
+--	AND d.transaction_count >= 50
+-- 	AND d.average_day_wait <= 100
+;
+
+
+
+-- Q. HOW MANY RECORDS DO NOT HAVE AN ENTITY TYPE OF 1 OR 2?
+
+-- A. ZERO?
+
+SELECT COUNT(DISTINCT nd.npi)
+FROM npi_data nd
+--	INNER JOIN docgraph d
+--		ON CASE WHEN nd.entity_type_code = '1' THEN nd.npi = d.from_npi
+--		ELSE nd.npi = d.to_npi END
+	INNER JOIN nucc_taxonomy tx
+		ON nd.Combined_Taxonomy = tx.code
+	INNER JOIN zip_cbsa z
+		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
+WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+	AND (nd.entity_type_code IS NULL
+		 OR nd.entity_type_code NOT IN ('1', '2')
+--	AND d.transaction_count >= 50
+-- 	AND d.average_day_wait <= 100
+;
+
+
+
+
+-- JOINING docgraph DATA ON ENTITY TYPE - CAN THEN SEE AVERAGE DAY WAITS AND TRANSACTION COUNTS
+
 SELECT nd.npi,
 	nd.provider_organization_name AS org_name,
 	nd.Provider_Last_Name || ', ' || Provider_First_Name || Provider_Credential AS provider_name,	
@@ -228,16 +375,17 @@ nd.Provider_Business_Practice_Location_Address_State_Name AS "State",
 FROM npi_data nd
 	INNER JOIN docgraph d
 		ON CASE WHEN nd.entity_type_code = '1' THEN nd.npi = d.from_npi
-		ELSE nd.npi = d.to_npi END
+		 	WHEN nd.entity_type_code = '2' THEN nd.npi = d.to_npi END	-- CAN ALSO LOOK AT OTHER TYPES, BUT JOIN MIGHT TAKE LONGER
 	INNER JOIN nucc_taxonomy tx
 		ON nd.Combined_Taxonomy = tx.code
 	INNER JOIN zip_cbsa z
 		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
-WHERE WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
 	AND (nd.provider_organization_name IS NOT NULL
 		OR nd.Provider_Last_Name IS NOT NULL)
 	AND d.transaction_count >= 50
 	AND d.average_day_wait <= 100
+--	AND nd.entity_type_code IN ('1', '2')
 LIMIT 2;
 
 
