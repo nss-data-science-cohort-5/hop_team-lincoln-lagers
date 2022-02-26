@@ -169,9 +169,46 @@ ON zip_cbsa (zip);
 
 -- 7) EXAMPLE JOINS FOR EXPLORATORY DATA ANALYSIS
 
--- FIRST VERSION WITHOUT JOINING docgraph -
---		TO DO - FIND ALL NASHVILLE CBSAs
-SELECT nd.npi,
+-- FIRST VERSION WITHOUT JOINING docgraph
+	
+-- ABOUT 44,622 NPIs FOR GREATER NASHVILLE	
+WITH cteZIP AS
+(
+	SELECT DISTINCT nd.Provider_Business_Practice_Location_Address_City_Name AS City, LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) AS ZIP
+	FROM npi_data nd
+	WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+		AND LOWER(nd.Provider_Business_Practice_Location_Address_City_Name) IN
+		(
+			 'brentwood'
+			,'clarksville'
+			,'columbia'
+			,'cool springs'
+			,'dickson'
+			,'donelson'
+			,'franklin'
+			,'gallatin'
+			,'goodlettsville'
+			,'hendersonville'
+			,'hermitage'
+			,'lavergne'
+			,'la vergne'
+			,'lebanon'
+			,'madison'
+			,'mount juliet'
+			,'mt juliet'
+			,'mt. juliet'
+			,'murfreesboro'
+			,'nashville'
+			,'nolensville'
+			,'old hickory'
+			'portland'
+			,'smyrna'
+			,'springfield'
+			,'spring hill'
+			,'white house'
+		)
+)
+SELECT nd.npi,	-- ~145,800 ROWS FOR ALL OF TN
 	nd.provider_organization_name AS org_name,
 	nd.Provider_Last_Name || ', ' || Provider_First_Name || Provider_Credential AS provider_name,
 	CASE WHEN nd.entity_type_code = '1' THEN 'Provider'
@@ -199,11 +236,56 @@ FROM npi_data nd
 	INNER JOIN zip_cbsa z
 		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
 WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
-	AND (nd.provider_organization_name IS NOT NULL
-		OR nd.Provider_Last_Name IS NOT NULL)
+	AND z.zip IN
+	(
+		SELECT ZIP
+		FROM cteZIP
+	)
+--	AND (nd.provider_organization_name IS NOT NULL
+--		OR nd.Provider_Last_Name IS NOT NULL)
 --	AND d.transaction_count >= 50
 -- 	AND d.average_day_wait <= 100
-LIMIT 20;
+;
+
+
+
+-- TO DO - WHICH CBSAs ARE IN GREATER NASHVILLE?
+--  	SEE https://en.wikipedia.org/wiki/Nashville_metropolitan_area#Metropolitan_Statistical_Area
+
+SELECT DISTINCT nd.Provider_Business_Practice_Location_Address_City_Name AS City, LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) AS ZIP
+FROM npi_data nd
+WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+	AND LOWER(nd.Provider_Business_Practice_Location_Address_City_Name) IN
+	(
+		 'brentwood'
+		,'clarksville'
+		,'columbia'
+		,'cool springs'
+		,'dickson'
+		,'donelson'
+		,'franklin'
+		,'gallatin'
+		,'goodlettsville'
+		,'hendersonville'
+		,'hermitage'
+		,'lavergne'
+		,'la vergne'
+		,'lebanon'
+		,'madison'
+		,'mount juliet'
+		,'mt juliet'
+		,'mt. juliet'
+		,'murfreesboro'
+		,'nashville'
+		,'nolensville'
+		,'old hickory'
+		'portland'
+		,'smyrna'
+		,'springfield'
+		,'spring hill'
+		,'white house'
+	)
+ORDER BY City, ZIP;
 
 
 
@@ -211,8 +293,44 @@ LIMIT 20;
 
 -- Q. HOW MANY PROVIDERS HAVE MISSING TAXONOMY CODES?  ARE THESE PROVIDERS' NPIs DEACTIVATED?
 
--- A. THERE ARE 885 PROVIDERS IN TN WHO SEEM TO BE MISSING TAXONOMY CODES.  HOWEVER, NONE OF THESE HAVE DE-ACTIVATION OR RE-ACTIVATION INFO FOR THEIR NPIs.  
+-- A. THERE ARE ~ 226 PROVIDERS IN GREATER NASHVILLE WHO SEEM TO BE MISSING TAXONOMY CODES.  HOWEVER, NONE OF THESE HAVE DE-ACTIVATION OR RE-ACTIVATION INFO FOR THEIR NPIs.  
 
+WITH cteZIP AS
+(
+	SELECT DISTINCT nd.Provider_Business_Practice_Location_Address_City_Name AS City, LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) AS ZIP
+	FROM npi_data nd
+	WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+		AND LOWER(nd.Provider_Business_Practice_Location_Address_City_Name) IN
+		(
+			 'brentwood'
+			,'clarksville'
+			,'columbia'
+			,'cool springs'
+			,'dickson'
+			,'donelson'
+			,'franklin'
+			,'gallatin'
+			,'goodlettsville'
+			,'hendersonville'
+			,'hermitage'
+			,'lavergne'
+			,'la vergne'
+			,'lebanon'
+			,'madison'
+			,'mount juliet'
+			,'mt juliet'
+			,'mt. juliet'
+			,'murfreesboro'
+			,'nashville'
+			,'nolensville'
+			,'old hickory'
+			'portland'
+			,'smyrna'
+			,'springfield'
+			,'spring hill'
+			,'white house'
+		)
+)
 SELECT COUNT(*)
 FROM npi_data nd
 --	INNER JOIN docgraph d
@@ -224,6 +342,11 @@ FROM npi_data nd
 		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
 WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
 	AND tx.code IS NULL
+	AND z.zip IN
+	(
+		SELECT ZIP
+		FROM cteZIP
+	)
 --	AND d.transaction_count >= 50
 -- 	AND d.average_day_wait <= 100
 ;
@@ -237,6 +360,42 @@ WITH cteNoTxCode AS
 			ON npi_data.Combined_Taxonomy = nucc_taxonomy.code
 	WHERE Provider_Business_Practice_Location_Address_State_Name = 'TN'
 		AND code IS NULL
+),
+cteZIP AS
+(
+	SELECT DISTINCT nd.Provider_Business_Practice_Location_Address_City_Name AS City, LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) AS ZIP
+	FROM npi_data nd
+	WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+		AND LOWER(nd.Provider_Business_Practice_Location_Address_City_Name) IN
+		(
+			 'brentwood'
+			,'clarksville'
+			,'columbia'
+			,'cool springs'
+			,'dickson'
+			,'donelson'
+			,'franklin'
+			,'gallatin'
+			,'goodlettsville'
+			,'hendersonville'
+			,'hermitage'
+			,'lavergne'
+			,'la vergne'
+			,'lebanon'
+			,'madison'
+			,'mount juliet'
+			,'mt juliet'
+			,'mt. juliet'
+			,'murfreesboro'
+			,'nashville'
+			,'nolensville'
+			,'old hickory'
+			'portland'
+			,'smyrna'
+			,'springfield'
+			,'spring hill'
+			,'white house'
+		)
 )
 SELECT nd.npi,
 	nd.NPI_Deactivation_Reason_Code,
@@ -273,6 +432,11 @@ WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
 	(
 		SELECT npi
 		FROM cteNoTxCode
+	)
+	AND z.zip IN
+	(
+		SELECT ZIP
+		FROM cteZIP
 	)
 	AND 
 	(
@@ -330,7 +494,7 @@ WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
 
 -- Q. HOW MANY RECORDS DO NOT HAVE AN ENTITY TYPE OF 1 OR 2?
 
--- A. ZERO?
+-- A. ZERO?  IS THIS RIGHT?
 
 SELECT COUNT(DISTINCT nd.npi)
 FROM npi_data nd
@@ -353,6 +517,42 @@ WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
 
 -- JOINING docgraph DATA ON ENTITY TYPE - CAN THEN SEE AVERAGE DAY WAITS AND TRANSACTION COUNTS
 
+WITH cteZIP AS
+(
+	SELECT DISTINCT nd.Provider_Business_Practice_Location_Address_City_Name AS City, LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) AS ZIP
+	FROM npi_data nd
+	WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+		AND LOWER(nd.Provider_Business_Practice_Location_Address_City_Name) IN
+		(
+			 'brentwood'
+			,'clarksville'
+			,'columbia'
+			,'cool springs'
+			,'dickson'
+			,'donelson'
+			,'franklin'
+			,'gallatin'
+			,'goodlettsville'
+			,'hendersonville'
+			,'hermitage'
+			,'lavergne'
+			,'la vergne'
+			,'lebanon'
+			,'madison'
+			,'mount juliet'
+			,'mt juliet'
+			,'mt. juliet'
+			,'murfreesboro'
+			,'nashville'
+			,'nolensville'
+			,'old hickory'
+			'portland'
+			,'smyrna'
+			,'springfield'
+			,'spring hill'
+			,'white house'
+		)
+)
 SELECT nd.npi,
 	nd.provider_organization_name AS org_name,
 	nd.Provider_Last_Name || ', ' || Provider_First_Name || Provider_Credential AS provider_name,	
@@ -381,6 +581,11 @@ FROM npi_data nd
 	INNER JOIN zip_cbsa z
 		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
 WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+	AND z.zip IN
+	(
+		SELECT ZIP
+		FROM cteZIP	 
+	)
 	AND (nd.provider_organization_name IS NOT NULL
 		OR nd.Provider_Last_Name IS NOT NULL)
 	AND d.transaction_count >= 50
