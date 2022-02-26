@@ -166,8 +166,49 @@ ON zip_cbsa (zip);
 
 -- 7) EXAMPLE JOINS FOR EXPLORATORY DATA ANALYSIS
 
+-- FIRST VERSION WITHOUT JOINING docgraph -
+--		TO DO - FIND ALL NASHVILLE CBSAs
 SELECT nd.npi,
 	nd.provider_organization_name AS org_name,
+	nd.Provider_Last_Name || ', ' || Provider_First_Name || Provider_Credential AS provider_name,
+	CASE WHEN nd.entity_type_code = '1' THEN 'Provider'
+		WHEN nd.entity_type_code = '2' THEN 'Facility'
+		END AS entity_type,
+--	d.from_npi,
+--	d.to_npi,
+	tx.code AS taxonomy_code,
+	tx.classification,	-- DO WE CONCATENATE THESE?
+	tx.specialization,
+--	d.patient_count,
+--	d.transaction_count,
+--	d.average_day_wait,
+nd.Provider_First_Line_Business_Practice_Location_Address || ' ' || nd.Provider_Second_Line_Business_Practice_Location_Address AS Street_Address,
+nd.Provider_Business_Practice_Location_Address_City_Name AS City,
+nd.Provider_Business_Practice_Location_Address_State_Name AS "State",
+	z.zip,
+	z.cbsa
+FROM npi_data nd
+--	INNER JOIN docgraph d
+--		ON CASE WHEN nd.entity_type_code = '1' THEN nd.npi = d.from_npi
+--		ELSE nd.npi = d.to_npi END
+	INNER JOIN nucc_taxonomy tx
+		ON nd.Combined_Taxonomy = tx.code
+	INNER JOIN zip_cbsa z
+		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
+WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+	AND (nd.provider_organization_name IS NOT NULL
+		OR nd.Provider_Last_Name IS NOT NULL)
+--	AND d.transaction_count >= 50
+-- 	AND d.average_day_wait <= 100
+LIMIT 20;
+
+
+
+
+-- JOINING docgraph DATA ON ENTITY TYPE
+SELECT nd.npi,
+	nd.provider_organization_name AS org_name,
+	nd.Provider_Last_Name || ', ' || Provider_First_Name || Provider_Credential AS provider_name,	
 	CASE WHEN nd.entity_type_code = '1' THEN 'Provider'
 		WHEN nd.entity_type_code = '2' THEN 'Facility'
 		END AS entity_type,
@@ -192,7 +233,10 @@ FROM npi_data nd
 		ON nd.Combined_Taxonomy = tx.code
 	INNER JOIN zip_cbsa z
 		ON LEFT(nd.Provider_Business_Practice_Location_Address_Postal_Code, 5) = z.zip
-WHERE d.transaction_count >= 50
+WHERE WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
+	AND (nd.provider_organization_name IS NOT NULL
+		OR nd.Provider_Last_Name IS NOT NULL)
+	AND d.transaction_count >= 50
 	AND d.average_day_wait <= 100
 LIMIT 2;
 
