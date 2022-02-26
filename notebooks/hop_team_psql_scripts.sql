@@ -18,7 +18,7 @@ CREATE DATABASE hop_teaming
 
 CREATE TABLE IF NOT EXISTS docgraph
 (
-	pk_id     			INT PRIMARY KEY,
+--	pk_id     			INT PRIMARY KEY,
 	from_npi 			VARCHAR(10), 
 	to_npi 				VARCHAR(10), 
 	patient_count 		int, 
@@ -352,6 +352,7 @@ WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
 ;
 
 
+-- CHECK WITH NPI 1306849450
 WITH cteNoTxCode AS
 (
 	SELECT npi
@@ -444,6 +445,7 @@ WHERE nd.Provider_Business_Practice_Location_Address_State_Name = 'TN'
 		nd.NPI_Deactivation_Date IS NOT NULL OR 
 		nd.NPI_Reactivation_Date IS NOT NULL
 	)
+	AND nd.npi = '1306849450'
 --	AND d.transaction_count >= 50
 -- 	AND d.average_day_wait <= 100
 ;
